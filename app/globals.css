@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@import "@lla-ma/ui/styles.css";
+
+/* Let Tailwind discover the utility classes used inside the @lla-ma/ui shell
+   components (the header's `hidden md:flex` responsive switches, etc.) so they
+   get generated even though they live in node_modules. */
+@source "../node_modules/@lla-ma/ui/dist";
+
+/*
+ * Theme wiring.
+ *
+ * @lla-ma/ui drives theming with a `data-theme` attribute on <html> (set by the
+ * no-flash script in app/layout.tsx, toggled by the header). This dashboard,
+ * however, styles itself with Tailwind `dark:` utilities — which by default key
+ * off the OS `prefers-color-scheme`, NOT `data-theme`. Without this override the
+ * header toggle would flip the shared shell but leave the dashboard stuck on the
+ * OS theme. Redefine the `dark` variant to follow `data-theme` so one toggle
+ * themes everything. (This is the llama-apps analog of the `--muted` specificity
+ * gotcha hit during the llama-base lift — same lesson, different mechanism.)
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}

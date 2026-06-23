@@ -1,0 +1,32 @@
+{
+  "name": "llama-apps",
+  "version": "0.1.0",
+  "description": "The self-hosted, push-to-deploy app platform — your own Vercel, on your own box.",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "shots": "node scripts/capture-shots.mjs",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lla-ma/ui": "^0.1.3",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "playwright": "^1.61.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
