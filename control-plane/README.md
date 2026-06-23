@@ -9,14 +9,16 @@ It holds the Docker socket, Caddy's admin API, and project secrets, so it runs
 ```bash
 pnpm install
 cp .env.example .env        # set PG_PASSWORD (and point PG_* at your Postgres)
+# apply the state schema once (creates the `deploy` schema + seeds the operator tenant)
+psql -h $PG_HOST -p $PG_PORT -U $PG_USER -d $PG_DATABASE -f schema.sql
 pnpm run dev
 curl localhost:8787/health     # { status, db: { ok: true, projects: 0, ... } }
 curl localhost:8787/projects   # reads the deploy schema -> { projects: [] }
 ```
 
 State lives in the **`deploy` schema** of your Postgres (tables
-`projects` / `deployments` / `domains` / `build_logs`). Create that schema before
-first run — see the project README's note on the schema.
+`projects` / `deployments` / `domains` / `build_logs` + a seeded `ten_operator`
+tenant). [`schema.sql`](schema.sql) creates it all.
 
 ## Routes
 
@@ -39,3 +41,10 @@ pm2, …) as a service that:
 - connects to Postgres with `PG_SCHEMA=deploy`.
 
 All configuration is environment-driven — see [`.env.example`](.env.example).
+
+### Optional: deployment thumbnails
+
+Set `SHOT_HOOK_CMD` to the dashboard's capture command and the control plane runs
+it (detached, best-effort) whenever a deployment goes live, refreshing that
+project's thumbnail — e.g.
+`SHOT_HOOK_CMD=node /path/to/dashboard/scripts/capture-shots.mjs`. Unset = disabled.

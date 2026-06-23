@@ -57,9 +57,12 @@ same-origin `app/api/*` route handlers proxy to it, keeping the orchestrator pri
 ## Quick start
 
 > **Schema:** the control plane stores state in the **`deploy` schema** of your
-> Postgres — tables `projects` / `deployments` / `domains` / `build_logs`. Create
-> that schema before first run. *(A ready-made schema file ships in a follow-up; for
-> now create the tables to match the columns used in `control-plane/src/lib/*`.)*
+> Postgres — tables `projects` / `deployments` / `domains` / `build_logs` plus a
+> seeded operator tenant. Apply it once before first run:
+>
+> ```bash
+> psql -h $PG_HOST -p $PG_PORT -U $PG_USER -d $PG_DATABASE -f control-plane/schema.sql
+> ```
 
 ### 1. Control plane (the orchestrator)
 
@@ -100,7 +103,36 @@ All config is environment variables. Dashboard:
 
 Control plane — see [`control-plane/.env.example`](control-plane/.env.example):
 `PG_*` (Postgres + `deploy` schema), `CADDY_ADMIN` (loopback admin API),
-`DEPLOY_DOMAIN`, `CONTAINER_PORT`, `GITHUB_WEBHOOK_SECRET`.
+`DEPLOY_DOMAIN`, `CONTAINER_PORT`, `GITHUB_WEBHOOK_SECRET`, and the optional
+`SHOT_HOOK_CMD` (auto-refresh deployment thumbnails — see below).
+
+---
+
+## Deployment thumbnails
+
+The projects grid shows a preview image per project (the "Vercel preview" look).
+These are captured by screenshotting each project's live deployment:
+
+```bash
+npm run shots                                    # capture all running deployments
+npm run shots -- --project proj_xxx              # capture just one
+```
+
+It reads the project → URL map from the control plane (`CONTROL_PLANE_URL`),
+screenshots each `running` deployment over HTTPS, and writes
+`public/shots/<projectId>.jpg` (gitignored — they're generated artifacts).
+Projects whose latest deploy `failed`, or that have no public `https://` URL, are
+skipped. The dashboard falls back to a "no preview yet" placeholder until a shot
+exists.
+
+**Auto-refresh on deploy:** set `SHOT_HOOK_CMD` on the control plane to the capture
+command, and it runs (detached, best-effort) whenever a deployment goes live, so the
+thumbnail for that project refreshes automatically:
+
+```bash
+# in the control plane's environment
+SHOT_HOOK_CMD=node /path/to/dashboard/scripts/capture-shots.mjs
+```
 
 ---
 
