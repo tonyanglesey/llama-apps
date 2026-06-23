@@ -52,7 +52,7 @@ export default function AppChrome({
       <LlamaFooter
         theme={theme}
         maxWidth="100%"
-        tagline="The self-hosted, push-to-deploy app platform — your own Vercel, on your own box."
+        tagline="The self-hosted, AI-native Postgres console — Supabase Studio's polish, for any Postgres, on your own box."
         copyright="lla.ma · © 2026 Via Ventures"
         columns={[
           {
@@ -60,7 +60,7 @@ export default function AppChrome({
             links: [
               {
                 label: "GitHub",
-                href: "https://github.com/tonyanglesey/llama-apps",
+                href: "https://github.com/tonyanglesey/llama-base",
               },
               { label: "lla.ma", href: "https://lla.ma" },
             ],
@@ -70,7 +70,16 @@ export default function AppChrome({
             title: "DEVELOPERS",
             links: [
               { label: "Docs", href: "https://lla.ma/docs" },
-              { label: "lla.ma base", href: "https://github.com/tonyanglesey/llama-base" },
+              { label: "API status", href: "https://api.lla.ma" },
+              { label: "Sign in", href: "https://lla.ma/login" },
+              { label: "Sign up", href: "https://lla.ma/register" },
+            ],
+          },
+          {
+            title: "COMPANY",
+            links: [
+              { label: "Account", href: "https://lla.ma/account" },
+              { label: "Contact", href: "mailto:hello@lla.ma" },
             ],
           },
         ]}

@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# generated deployment thumbnails (captured per-deploy by `npm run shots`)
+/public/shots/
+
 # production
 /build
 

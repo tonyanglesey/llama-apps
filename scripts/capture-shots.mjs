@@ -35,6 +35,16 @@ async function envLocal(key) {
 
 const CP = (await envLocal("CONTROL_PLANE_URL")) ?? "http://127.0.0.1:8787";
 
+// Optional: capture a single project (used by the control plane's post-deploy
+// hook, so a deploy only re-shoots the project that changed). Accepts either
+// `--project <id>` on the CLI or the SHOT_PROJECT_ID env var; unset = shoot all.
+function onlyProjectId() {
+  const i = process.argv.indexOf("--project");
+  if (i !== -1 && process.argv[i + 1]) return process.argv[i + 1];
+  return process.env.SHOT_PROJECT_ID || null;
+}
+const ONLY = onlyProjectId();
+
 async function cp(p) {
   const res = await fetch(CP + p, { cache: "no-store" });
   if (!res.ok) throw new Error(`control plane ${p} → HTTP ${res.status}`);
@@ -73,6 +83,7 @@ async function main() {
 
   const targets = [];
   for (const p of projects ?? []) {
+    if (ONLY && p.id !== ONLY) continue;
     const latest = latestByProject.get(p.id);
     const url = captureUrl(p, latest);
     // Only shoot deployments that are actually serving something.

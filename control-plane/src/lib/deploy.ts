@@ -1,3 +1,4 @@
+import { execa } from "execa";
 import { getPool } from "./db.js";
 import { newId } from "./ids.js";
 import { cloneAtSha, cleanupDir } from "./github.js";
@@ -7,6 +8,30 @@ import { scrubSecrets } from "./secrets.js";
 
 const CONTAINER_PORT = Number(process.env.CONTAINER_PORT ?? 3000);
 const DEPLOY_DOMAIN = process.env.DEPLOY_DOMAIN ?? "apps.example.com";
+const PORT = Number(process.env.PORT ?? 8787);
+
+// Optional post-deploy hook: once a deployment is live, fire a configured command
+// to refresh the project's dashboard thumbnail (e.g. the dashboard's
+// `node scripts/capture-shots.mjs`). Opt-in via SHOT_HOOK_CMD — unset = no-op.
+// Best-effort and fully detached: it must never block, fail, or slow a deploy.
+function fireShotHook(projectId: string): void {
+  const cmd = process.env.SHOT_HOOK_CMD;
+  if (!cmd) return;
+  execa(cmd, {
+    shell: true,
+    detached: true,
+    stdio: "ignore",
+    env: {
+      // The capture script reads these — the project to shoot and where to
+      // reach this control plane (loopback on the box).
+      SHOT_PROJECT_ID: projectId,
+      CONTROL_PLANE_URL:
+        process.env.CONTROL_PLANE_URL ?? `http://127.0.0.1:${PORT}`,
+    },
+  }).catch(() => {
+    /* thumbnail capture is cosmetic — swallow any failure */
+  });
+}
 
 // Create a queued deployment row; returns its id.
 export async function createDeployment(opts: {
@@ -108,6 +133,9 @@ export async function runDeployment(deploymentId: string): Promise<void> {
       [deploymentId, containerId, url],
     );
     await log("stdout", `live at ${url}\n`);
+
+    // Refresh the dashboard thumbnail for this project (best-effort, detached).
+    fireShotHook(dep.project_id);
   } catch (err) {
     const msg = (err as Error).message;
     await log("stderr", `deploy failed: ${msg}\n`).catch(() => {});
