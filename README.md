@@ -164,6 +164,44 @@ SHOT_HOOK_CMD=node /path/to/dashboard/scripts/capture-shots.mjs
 The shared [`@lla-ma/ui`](https://www.npmjs.com/package/@lla-ma/ui) design system
 supplies the header/footer shell and theme tokens.
 
+### Repo layout — two apps, one repo
+
+This repo is a small monorepo holding **two separate applications** plus the box
+provisioning kit:
+
+```
+llama-apps/
+  app/  lib/  scripts/   the DASHBOARD  — Next.js, browser-facing (the only public surface)
+  control-plane/         the CONTROL PLANE — Fastify orchestrator, its own package + process
+  infra/                 setup-app-box.sh + Caddy config — provisions a box to run both
+```
+
+The **control plane is its own app**, not a module of the dashboard. It has its own
+`control-plane/package.json`, its own dependencies, its own `tsc` build (`dist/`),
+its own `.env`, and it runs as its **own process/service** (the
+`llama-control-plane` systemd unit) bound to loopback `:8787`. The dashboard's root
+`tsconfig.json` even excludes it so each builds independently.
+
+**Why split them.** The control plane holds the Docker socket, Caddy's admin API,
+and project secrets — root-equivalent power — so it must run **private**. The
+dashboard is the only piece meant to face a browser. They never share a process:
+
+```
+browser ──▶ dashboard (Next.js)  ──HTTP──▶  control plane (Fastify, loopback :8787)
+            app/api/* proxies              docker · nixpacks · caddy admin · Postgres
+```
+
+The dashboard (and its `app/api/*` route handlers) reach the control plane at
+`CONTROL_PLANE_URL`; the browser never touches the control plane directly.
+
+**Deploying them** (see [`infra/`](infra/)): both ship from this one repo, but land
+as two things on the box — the control-plane folder built and run as the
+`llama-control-plane` service (private), and the dashboard run/served separately as
+the browser-facing surface. Same single repo, two independently-running apps.
+
+> They live together for convenience (one clone, one version), but nothing stops
+> them being split into separate repos later — they only ever talk over HTTP.
+
 ---
 
 ## Roadmap
