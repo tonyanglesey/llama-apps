@@ -91,6 +91,19 @@ plane" panel — start it (step 1) and the projects grid lights up.
 > **ungated** — keep it on loopback, behind your own reverse proxy, or on a VPN. (The
 > hosted edition adds an account gate; the OSS build deliberately has no phone-home.)
 
+### Provision a real box (turnkey)
+
+To run it on a server (not just locally), [`infra/setup-app-box.sh`](infra/setup-app-box.sh)
+bootstraps a bare Ubuntu/Debian host end to end — swap, Docker, Nixpacks, Caddy
+(loopback admin + auto-HTTPS), a firewall, and a control-plane systemd unit:
+
+```bash
+sudo DEPLOY_DOMAIN=apps.example.com ADMIN_EMAIL=you@example.com bash infra/setup-app-box.sh
+```
+
+Then apply `control-plane/schema.sql`, drop in the control-plane code, and start the
+service. Full walkthrough + the manual DNS/firewall steps: [`infra/README.md`](infra/README.md).
+
 ---
 
 ## Configuration

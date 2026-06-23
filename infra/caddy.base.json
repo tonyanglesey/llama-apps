@@ -1,0 +1,27 @@
+{
+  "_comment": "Reference copy of the base Caddy config. setup-app-box.sh writes the live /etc/caddy/caddy.json (substituting ADMIN_EMAIL / CONTROL_PLANE_PORT). The control plane appends/removes routes under apps.http.servers.srv0.routes via the admin API at 127.0.0.1:2019. Replace ADMIN_EMAIL with your ACME contact if using this file directly.",
+
+  "admin": { "listen": "127.0.0.1:2019" },
+
+  "apps": {
+    "http": {
+      "servers": {
+        "srv0": {
+          "listen": [":443", ":80"],
+          "routes": [],
+          "automatic_https": { "disable": false }
+        }
+      }
+    },
+    "tls": {
+      "automation": {
+        "policies": [
+          { "issuers": [ { "module": "acme", "email": "ADMIN_EMAIL" } ] }
+        ],
+        "on_demand": {
+          "ask": "http://127.0.0.1:8787/internal/caddy/ask"
+        }
+      }
+    }
+  }
+}
