@@ -56,7 +56,7 @@ export default async function Home() {
       {projects.length === 0 ? (
         <Empty />
       ) : (
-        <ul className="w-full grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 space-y-4">
+        <ul className="grid w-full grid-cols-1 items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => {
             const deps = byProject.get(p.id) ?? [];
             const latest = deps[0];
@@ -64,7 +64,7 @@ export default async function Home() {
             return (
               <li
                 key={p.id}
-                className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+                className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
               >
                 {shot ? (
                   <a
@@ -92,41 +92,41 @@ export default async function Home() {
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-4 px-5 py-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/projects/${p.id}`}
-                        className="truncate font-medium hover:underline"
-                      >
-                        {p.name}
-                      </Link>
-                      {latest && <StatusBadge status={latest.status} />}
-                    </div>
-                    <p className="mt-1 truncate font-mono text-sm text-zinc-500">
-                      {p.repo_url}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    {p.production_domain && (
-                      <a
-                        href={`https://${p.production_domain}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-indigo-500 hover:underline"
-                      >
-                        {p.production_domain} ↗
-                      </a>
+                <div className="px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href={`/projects/${p.id}`}
+                      className="min-w-0 truncate font-medium hover:underline"
+                    >
+                      {p.name}
+                    </Link>
+                    {latest && (
+                      <span className="shrink-0">
+                        <StatusBadge status={latest.status} />
+                      </span>
                     )}
-                    <p className="mt-1 font-mono text-xs text-zinc-400">
-                      {p.default_branch}
-                    </p>
                   </div>
+                  <p className="mt-1 truncate font-mono text-sm text-zinc-500">
+                    {p.repo_url}
+                  </p>
+                  {p.production_domain && (
+                    <a
+                      href={`https://${p.production_domain}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 block truncate text-sm text-indigo-500 hover:underline"
+                    >
+                      {p.production_domain} ↗
+                    </a>
+                  )}
+                  <p className="mt-1 font-mono text-xs text-zinc-400">
+                    {p.default_branch}
+                  </p>
                 </div>
 
                 {deps.length > 0 && (
                   <ul className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-900 dark:border-zinc-900">
-                    {deps.slice(0, 5).map((d) => (
+                    {deps.slice(0, 3).map((d) => (
                       <li key={d.id}>
                         <Link
                           href={`/deployments/${d.id}`}
