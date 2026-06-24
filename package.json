@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "next dev -H 127.0.0.1 -p 3000",
     "shots": "node scripts/capture-shots.mjs",
     "build": "next build",
     "start": "next start -H 127.0.0.1 -p 3000",

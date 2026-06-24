@@ -1,6 +1,13 @@
 // Caddy admin API (loopback). Routes are addressed by a stable @id derived from
 // the hostname, so we can upsert/remove them without scanning the array.
 const ADMIN = process.env.CADDY_ADMIN ?? "http://127.0.0.1:2019";
+
+// Caddy is optional. When CADDY_ADMIN is unset, the control plane runs without a
+// public routing layer (e.g. local OSS dev): deploys are reachable directly on
+// their container's localhost port instead of a public https hostname.
+export function caddyEnabled(): boolean {
+  return Boolean(process.env.CADDY_ADMIN);
+}
 const ROUTES = `${ADMIN}/config/apps/http/servers/srv0/routes`;
 
 // Node's fetch (undici) attaches an opaque Origin on POST/DELETE that Caddy's

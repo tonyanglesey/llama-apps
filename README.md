@@ -54,55 +54,94 @@ same-origin `app/api/*` route handlers proxy to it, keeping the orchestrator pri
 
 ---
 
-## Quick start
+## Where it runs
 
-> **Schema:** the control plane stores state in the **`deploy` schema** of your
-> Postgres — tables `projects` / `deployments` / `domains` / `build_logs` plus a
-> seeded operator tenant. Apply it once before first run:
->
-> ```bash
-> psql -h $PG_HOST -p $PG_PORT -U $PG_USER -d $PG_DATABASE -f control-plane/schema.sql
-> ```
+The control plane builds and runs your apps as Docker containers — so **Docker (and
+nixpacks) must be installed wherever the control plane runs.** That one choice decides
+how much sits on your laptop and what your deploy URLs look like:
 
-### 1. Control plane (the orchestrator)
+| Topology | Control plane + Docker on… | Your laptop runs | Deploy URLs |
+|---|---|---|---|
+| **All-local** | your laptop | everything | `http://127.0.0.1:<port>` |
+| **Your own box** | a server you own | just the dashboard (`CONTROL_PLANE_URL` → the box) | `https://<app>.<your-domain>` |
+| **Cloud** (paid) | lla.ma's servers | just sign in | managed `https://<app>.<domain>` |
 
-Needs Node, Docker, Nixpacks, and Caddy available on the host.
+**All-local** is the zero-infrastructure way to try it — the trade is Docker on your
+machine and localhost URLs. Point the dashboard at a **box you own** instead and your
+laptop needs no Docker; add Caddy + a wildcard DNS record and you get real
+`https://<app>.<your-domain>` deploys ([Going public](#going-public-optional)). The
+**cloud** tier is the same dashboard with lla.ma running the box, Docker, TLS and DNS
+for you. It's open-core: you can always self-host the whole thing for free.
+
+---
+
+## Quick start (local)
+
+Run the whole stack on your machine — dashboard + control plane + Docker — with one
+command. Nothing is hosted by lla.ma: every server is yours, configured in `.env`.
+
+**Prerequisites**
+
+- **Node** 20+
+- **Docker** running — builds run as real containers on this machine
+- **[Nixpacks](https://nixpacks.com)** (`brew install nixpacks`) — turns a repo into an image
+- A **Postgres** you control (local or remote) — the control plane stores state here
+
+**1. Point the control plane at your database.** It's the *only* part that uses Postgres:
 
 ```bash
-cd control-plane
-pnpm install
-cp .env.example .env        # set PG_PASSWORD and point PG_* at your Postgres
-pnpm run dev                # http://127.0.0.1:8787
-curl localhost:8787/health  # { status: "ok", db: { ok: true, ... } }
+cd control-plane && npm install
+cp .env.example .env      # set PG_* (host / port / db / user / password)
+cd ..
 ```
 
-### 2. Dashboard
+The `deploy` schema (tables `projects` / `deployments` / `domains` / `build_logs` +
+a seeded operator tenant) is **created automatically on first run** — no manual
+`psql` step.
+
+**2. Point the dashboard at the control plane.** The default is correct for local:
 
 ```bash
 npm install
-echo "CONTROL_PLANE_URL=http://127.0.0.1:8787" > .env.local
-npm run dev                 # http://127.0.0.1:3000
+cp .env.example .env      # CONTROL_PLANE_URL=http://127.0.0.1:8787 (default)
 ```
 
-Until the control plane is reachable the dashboard shows a "Can't reach the control
-plane" panel — start it (step 1) and the projects grid lights up.
+> **Two `.env` files, on purpose.** The dashboard's `.env` only holds
+> `CONTROL_PLANE_URL`. Your **database** goes in **`control-plane/.env`** (`PG_*`) —
+> the dashboard never touches Postgres.
+
+**3. Run both together:**
+
+```bash
+npm run dev               # control plane (:8787) + dashboard (:3000), one process
+```
+
+Open <http://localhost:3000>. With no Caddy configured, deploys run as local
+containers reachable at `http://127.0.0.1:<port>` — no public domain or TLS needed.
+Run just one side with `npm run dev:web` (dashboard) or `npm run dev` inside
+`control-plane/`.
 
 > **Run it privately.** This console can trigger deploys and reach secrets. It ships
 > **ungated** — keep it on loopback, behind your own reverse proxy, or on a VPN. (The
 > hosted edition adds an account gate; the OSS build deliberately has no phone-home.)
 
-### Provision a real box (turnkey)
+## Going public (optional)
 
-To run it on a server (not just locally), [`infra/setup-app-box.sh`](infra/setup-app-box.sh)
-bootstraps a bare Ubuntu/Debian host end to end — swap, Docker, Nixpacks, Caddy
-(loopback admin + auto-HTTPS), a firewall, and a control-plane systemd unit:
+Local mode serves deploys at `http://127.0.0.1:<port>`. To serve real
+`https://<app>.<domain>`, run **[Caddy](https://caddyserver.com)** and set
+`CADDY_ADMIN` + `DEPLOY_DOMAIN` in `control-plane/.env` — the control plane then
+registers each host and Caddy provisions TLS automatically.
+
+To stand up a server end to end, [`infra/setup-app-box.sh`](infra/setup-app-box.sh)
+bootstraps a bare Ubuntu/Debian host — swap, Docker, Nixpacks, Caddy (loopback admin
++ auto-HTTPS), a firewall, and a control-plane systemd unit:
 
 ```bash
 sudo DEPLOY_DOMAIN=apps.example.com ADMIN_EMAIL=you@example.com bash infra/setup-app-box.sh
 ```
 
-Then apply `control-plane/schema.sql`, drop in the control-plane code, and start the
-service. Full walkthrough + the manual DNS/firewall steps: [`infra/README.md`](infra/README.md).
+Drop in the control-plane code and start the service (the schema self-applies on
+boot). Full walkthrough + the manual DNS/firewall steps: [`infra/README.md`](infra/README.md).
 
 ---
 
@@ -115,9 +154,15 @@ All config is environment variables. Dashboard:
 | `CONTROL_PLANE_URL` | `http://127.0.0.1:8787` | Where the control plane is reachable |
 
 Control plane — see [`control-plane/.env.example`](control-plane/.env.example):
-`PG_*` (Postgres + `deploy` schema), `CADDY_ADMIN` (loopback admin API),
-`DEPLOY_DOMAIN`, `CONTAINER_PORT`, `GITHUB_WEBHOOK_SECRET`, and the optional
-`SHOT_HOOK_CMD` (auto-refresh deployment thumbnails — see below).
+
+| Variable | Required | Description |
+|---|---|---|
+| `PG_*` | **yes** | Postgres connection (state lives in the `deploy` schema) |
+| `CONTAINER_PORT` | yes | Port your apps listen on inside the container |
+| `CADDY_ADMIN` | no | Caddy admin API. **Unset = local mode** (`http://127.0.0.1:<port>` URLs, no public TLS) |
+| `DEPLOY_DOMAIN` | no | Apex for public hostnames; only used with `CADDY_ADMIN` |
+| `GITHUB_WEBHOOK_SECRET` / `GITHUB_TOKEN` | no | Push-to-deploy webhooks and private repos |
+| `SHOT_HOOK_CMD` | no | Auto-refresh deployment thumbnails (see below) |
 
 ---
 

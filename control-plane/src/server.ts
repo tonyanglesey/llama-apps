@@ -1,6 +1,6 @@
 import "dotenv/config";
 import Fastify from "fastify";
-import { getPool, pingDb } from "./lib/db.js";
+import { getPool, pingDb, ensureSchema } from "./lib/db.js";
 import { webhookRoutes } from "./routes/webhook.js";
 import { projectRoutes } from "./routes/projects.js";
 import { deploymentRoutes } from "./routes/deployments.js";
@@ -48,6 +48,21 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     await getPool().end();
     process.exit(0);
   });
+}
+
+// Bring the deploy schema into existence on first run, so DB setup is just
+// pointing PG_* at a Postgres. Non-fatal: if the DB is unreachable we still
+// start (the error surfaces via /health and the dashboard), but log it loudly.
+try {
+  const { created } = await ensureSchema();
+  app.log.info(
+    created ? "deploy schema not found — created it" : "deploy schema present",
+  );
+} catch (err) {
+  app.log.error(
+    { err: (err as Error).message },
+    "could not apply the deploy schema — check PG_* in control-plane/.env and that the database is reachable",
+  );
 }
 
 try {

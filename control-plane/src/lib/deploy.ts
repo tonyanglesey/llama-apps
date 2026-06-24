@@ -3,7 +3,7 @@ import { getPool } from "./db.js";
 import { newId } from "./ids.js";
 import { cloneAtSha, cleanupDir } from "./github.js";
 import { nixpacksBuild, dockerRun } from "./builder.js";
-import { addRoute, removeRoute } from "./caddy.js";
+import { addRoute, removeRoute, caddyEnabled } from "./caddy.js";
 import { scrubSecrets } from "./secrets.js";
 
 const CONTAINER_PORT = Number(process.env.CONTAINER_PORT ?? 3000);
@@ -116,16 +116,27 @@ export async function runDeployment(deploymentId: string): Promise<void> {
       onLog: log,
     });
 
-    await log("stdout", `routing ${hostname} -> 127.0.0.1:${hostPort}\n`);
-    await removeRoute(hostname);
-    await addRoute({ hostname, upstreamPort: hostPort });
+    // Public routing is optional. With Caddy configured (CADDY_ADMIN set) we
+    // register the host and serve it over https; without it (local OSS dev) the
+    // container is reachable directly on its mapped localhost port.
+    let url: string;
+    if (caddyEnabled()) {
+      await log("stdout", `routing ${hostname} -> 127.0.0.1:${hostPort}\n`);
+      await removeRoute(hostname);
+      await addRoute({ hostname, upstreamPort: hostPort });
+      url = `https://${hostname}`;
+    } else {
+      await log(
+        "stdout",
+        `no CADDY_ADMIN — skipping public routing; serving on 127.0.0.1:${hostPort}\n`,
+      );
+      url = `http://127.0.0.1:${hostPort}`;
+    }
 
     await log("stdout", "health-checking container\n");
     if (!(await healthCheck(hostPort))) {
       throw new Error("health check failed — container not responding");
     }
-
-    const url = `https://${hostname}`;
     await pool.query(
       `update deploy.deployments
           set status = 'running', container_id = $2, url = $3, finished_at = now()
