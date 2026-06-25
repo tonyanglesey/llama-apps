@@ -162,7 +162,20 @@ Control plane — see [`control-plane/.env.example`](control-plane/.env.example)
 | `CADDY_ADMIN` | no | Caddy admin API. **Unset = local mode** (`http://127.0.0.1:<port>` URLs, no public TLS) |
 | `DEPLOY_DOMAIN` | no | Apex for public hostnames; only used with `CADDY_ADMIN` |
 | `GITHUB_WEBHOOK_SECRET` / `GITHUB_TOKEN` | no | Push-to-deploy webhooks and private repos |
+| `BUILD_NODE_VERSION` | no | Node major for repos that don't pin one (default `22`; `.nvmrc`/`engines` win) |
+| `BUILD_PLATFORM` | no | Pin build/run arch, e.g. `linux/amd64`, for identical images on any host |
 | `SHOT_HOOK_CMD` | no | Auto-refresh deployment thumbnails (see below) |
+
+---
+
+## How apps are built
+
+Each deploy turns your repo into a container two ways, in priority order:
+
+1. **Your `Dockerfile`** — if the repo contains one, it's built directly (`docker build`). The escape hatch for anything the autobuilder can't handle (bleeding-edge toolchains, non-Node stacks, exact base images). The container must listen on `$PORT` (the platform sets it to `CONTAINER_PORT`).
+2. **Nixpacks autodetect** — otherwise [Nixpacks](https://nixpacks.com) detects the framework and builds it. Repos that don't pin a Node version build with `BUILD_NODE_VERSION` (default 22) instead of Nixpacks' EOL-18 fallback; a `.nvmrc` or `engines.node` always wins.
+
+If an app needs a newer toolchain than Nixpacks ships, add a `Dockerfile` — that's the always-works path.
 
 ---
 

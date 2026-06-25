@@ -2,7 +2,7 @@ import { execa } from "execa";
 import { getPool } from "./db.js";
 import { newId } from "./ids.js";
 import { cloneAtSha, cleanupDir } from "./github.js";
-import { nixpacksBuild, dockerRun } from "./builder.js";
+import { buildImage, dockerRun } from "./builder.js";
 import { addRoute, removeRoute, caddyEnabled } from "./caddy.js";
 import { scrubSecrets } from "./secrets.js";
 
@@ -102,8 +102,8 @@ export async function runDeployment(deploymentId: string): Promise<void> {
       token: process.env.GITHUB_TOKEN,
     });
 
-    await log("stdout", `building ${image} with nixpacks\n`);
-    await nixpacksBuild({ repoDir: buildDir, image, onLog: log });
+    await log("stdout", `building ${image}\n`);
+    await buildImage({ repoDir: buildDir, image, onLog: log });
 
     const hostPort = 30000 + Math.floor(Math.random() * 5000);
     await log("stdout", "starting container\n");
