@@ -38,7 +38,7 @@ pm2, …) as a service that:
 - binds **loopback only** (`HOST=127.0.0.1`) — never expose it publicly,
 - has access to the **Docker socket** (it shells out to `docker`),
 - can reach **Caddy's admin API** on `127.0.0.1:2019`,
-- connects to Postgres with `PG_SCHEMA=deploy`.
+- connects to Postgres, where it owns the fixed `deploy` schema.
 
 All configuration is environment-driven — see [`.env.example`](.env.example).
 

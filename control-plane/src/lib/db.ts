@@ -3,21 +3,26 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+// llama-apps owns a fixed `deploy` schema — its tables live there, never in
+// `public`, so it coexists cleanly with anything else in the database. The name
+// is intentionally NOT configurable: the queries qualify `deploy.*` and cloud
+// uses the same schema, so keeping it fixed preserves OSS↔cloud parity.
+const DEPLOY_SCHEMA = "deploy";
+
 // Single pool to the operator's Postgres. State lives in the `deploy` schema of
-// the `llama` DB (see llama_deploy_v0_schema.sql). search_path is pinned so all
-// queries resolve there by default.
+// the configured DB (see schema.sql). search_path is pinned so all queries
+// resolve there by default.
 let pool: Pool | undefined;
 
 export function getPool(): Pool {
   if (!pool) {
-    const schema = process.env.PG_SCHEMA ?? "deploy";
     pool = new Pool({
       host: process.env.PG_HOST ?? "127.0.0.1",
       port: Number(process.env.PG_PORT ?? 5432),
       database: process.env.PG_DATABASE ?? "llama",
       user: process.env.PG_USER ?? "postgres",
       password: process.env.PG_PASSWORD,
-      options: `-c search_path=${schema},public`,
+      options: `-c search_path=${DEPLOY_SCHEMA},public`,
     });
   }
   return pool;
@@ -67,7 +72,7 @@ export interface DbPing {
 
 // Proves connectivity AND that we can read the deploy schema.
 export async function pingDb(): Promise<DbPing> {
-  const schema = process.env.PG_SCHEMA ?? "deploy";
+  const schema = DEPLOY_SCHEMA;
   try {
     const { rows } = await getPool().query<{
       now: string;

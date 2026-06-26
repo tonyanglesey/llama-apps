@@ -101,6 +101,32 @@ export async function triggerDeploy(
   });
 }
 
+// Partial project update — only the provided fields are changed. `env` replaces
+// the whole env map. Changes apply on the next deploy.
+export interface ProjectUpdate {
+  name?: string;
+  default_branch?: string;
+  production_domain?: string | null;
+  env?: Record<string, string>;
+}
+
+export async function updateProject(
+  projectId: string,
+  patch: ProjectUpdate,
+): Promise<Project> {
+  const r = await cp<{ project: Project }>(`/projects/${projectId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return r.project;
+}
+
+// Delete a project and tear down its infra (containers + route + cascaded rows).
+export async function deleteProject(projectId: string): Promise<void> {
+  await cp<{ ok: true }>(`/projects/${projectId}`, { method: "DELETE" });
+}
+
 export interface DeploymentDetail extends Deployment {
   container_id: string | null;
   started_at: string | null;

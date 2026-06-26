@@ -4,6 +4,8 @@ import { getProject } from "@/lib/control-plane";
 import { StatusBadge } from "@/app/ui/status-badge";
 import { timeAgo } from "@/app/ui/time";
 import { DeployButton } from "./deploy-button";
+import { DeleteProject } from "./delete-project";
+import { EnvSettings } from "./env-settings";
 
 export default async function ProjectPage({
   params,
@@ -102,6 +104,17 @@ export default async function ProjectPage({
         </dl>
       </section>
 
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="text-sm font-medium text-zinc-500">
+          Environment variables
+        </h2>
+        <p className="mt-1 text-xs text-zinc-400">
+          Injected into the container at runtime. Changes apply on the next
+          deploy.
+        </p>
+        <EnvSettings projectId={project.id} env={project.env} />
+      </section>
+
       <section>
         <h2 className="mb-3 text-sm font-medium text-zinc-500">Deployments</h2>
         {deployments.length === 0 ? (
@@ -131,6 +144,19 @@ export default async function ProjectPage({
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="rounded-xl border border-red-200 bg-white p-5 dark:border-red-900/50 dark:bg-zinc-950">
+        <h2 className="text-sm font-medium text-red-600 dark:text-red-400">
+          Danger zone
+        </h2>
+        <div className="mt-3 flex items-center justify-between gap-4">
+          <p className="text-sm text-zinc-500">
+            Delete this project, its deployment history, and tear down its
+            running containers and routing. This cannot be undone.
+          </p>
+          <DeleteProject projectId={project.id} projectName={project.name} />
+        </div>
       </section>
     </div>
   );
