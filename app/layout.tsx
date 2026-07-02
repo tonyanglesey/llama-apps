@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AppChrome from "./chrome";
+import LlamaBgGradient from "./ui/llama-bg-gradient";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -34,6 +35,7 @@ export default function RootLayout({
               "try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}",
           }}
         />
+        <LlamaBgGradient />
         <AppChrome>{children}</AppChrome>
       </body>
     </html>
