@@ -8,7 +8,7 @@ Connect a GitHub repo, `git push`, and it clones → builds → containerizes �
 with automatic HTTPS. Real containers, a real server, a flat cost you control. No
 serverless metering, no per-request anxiety, no vendor lock-in.
 
-<div align="center"><img src="/public/llama-apps.png" />
+<div align="center"><img src="/public/llama-github-apps.png" />
 </div>
 
 ---
