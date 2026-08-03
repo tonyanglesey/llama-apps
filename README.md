@@ -1,7 +1,5 @@
 # lla.ma Apps
 
-## FOR TEST BUILD
-
 **The self-hosted, push-to-deploy app platform — your own Vercel, on your own box.**
 
 Connect a GitHub repo, `git push`, and it clones → builds → containerizes → routes
