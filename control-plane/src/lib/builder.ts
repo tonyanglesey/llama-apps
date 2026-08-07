@@ -130,3 +130,50 @@ export async function dockerRun(opts: {
 export async function dockerStop(containerIdOrName: string): Promise<void> {
   await execa("docker", ["rm", "-f", containerIdOrName]).catch(() => {});
 }
+
+// Reap a project's older containers + their images, keeping only the newest
+// `keep` (current + previous, for instant rollback). This is what stops old
+// deployments piling up and exhausting the box's disk: the control plane
+// previously never reaped, and one box reached 104 stale containers / ~138 GB
+// (2026-08 incident). Scoped strictly to this project's image repo, so it never
+// touches other projects or manually-run containers. Best-effort by contract —
+// callers must not let a reap failure fail an already-live deploy.
+export async function reapProjectContainers(opts: {
+  projectId: string;
+  keep: number;
+  onLog: LogFn;
+}): Promise<void> {
+  const repoPrefix = `llama-apps/${opts.projectId}:`;
+  // All containers (running + exited) — newest first. CreatedAt is uniform-TZ on
+  // the box, so a lexical descending sort orders by age reliably.
+  const { stdout } = await execa("docker", [
+    "ps",
+    "-a",
+    "--no-trunc",
+    "--format",
+    "{{.ID}}\t{{.CreatedAt}}\t{{.Image}}",
+  ]);
+  const mine = stdout
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [id, createdAt, image] = line.split("\t");
+      return { id, createdAt, image };
+    })
+    .filter((c) => c.image.startsWith(repoPrefix))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const stale = mine.slice(Math.max(opts.keep, 0));
+  for (const c of stale) {
+    await opts.onLog("stdout", `reaping old container ${c.id.slice(0, 12)} (${c.image})\n`);
+    await execa("docker", ["rm", "-f", c.id]).catch(() => {});
+    // Reclaim its image — each deploy has a unique tag, so this is unshared.
+    await execa("docker", ["rmi", "-f", c.image]).catch(() => {});
+  }
+  if (stale.length) {
+    await opts.onLog(
+      "stdout",
+      `reaped ${stale.length} old container(s) for ${opts.projectId}, kept newest ${opts.keep}\n`,
+    );
+  }
+}

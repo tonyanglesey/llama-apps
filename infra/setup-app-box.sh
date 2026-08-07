@@ -242,6 +242,44 @@ systemctl daemon-reload
 # intentionally NOT enabled/started: control-plane code is deployed separately.
 
 # ----------------------------------------------------------------------------
+# Screenshot capture — boot-time thumbnail refresh (unit stays disabled — no
+# dashboard code deployed yet). SHOT_HOOK_CMD (control-plane.env) already
+# re-shoots a project on every successful deploy; this unit covers the gap a
+# hook can't: containers that come back via `--restart unless-stopped` after a
+# reboot without a fresh deploy event, so their thumbnails would otherwise go
+# stale/missing until the project's next deploy.
+# ----------------------------------------------------------------------------
+log "installing headless Chromium system libraries (for deployment screenshots)"
+if command -v npx >/dev/null; then
+  npx --yes playwright install-deps chromium || warn "playwright install-deps failed — screenshot capture won't work until this is resolved"
+else
+  warn "npx/node not found — skipping Chromium system deps; install Node first, then re-run: npx --yes playwright install-deps chromium"
+fi
+
+cat > /etc/systemd/system/llama-shots.service <<EOF
+[Unit]
+Description=lla.ma Apps deployment screenshot capture (boot-time)
+After=network-online.target docker.service llama-control-plane.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=${DEPLOY_USER}
+WorkingDirectory=${APP_HOME}/dashboard
+ExecStart=/usr/bin/node scripts/capture-shots.mjs
+Environment=CONTROL_PLANE_URL=http://127.0.0.1:${CONTROL_PLANE_PORT}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+# intentionally NOT enabled/started: dashboard code (incl. scripts/capture-shots.mjs)
+# is deployed separately, and its own Chromium *browser* binary must be fetched by
+# the deploy user (npx playwright install chromium — no sudo, caches under
+# ~${DEPLOY_USER}/.cache/ms-playwright) once that code is in place. See infra/README.md.
+
+# ----------------------------------------------------------------------------
 # Verify
 # ----------------------------------------------------------------------------
 echo
