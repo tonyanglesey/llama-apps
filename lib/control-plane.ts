@@ -93,11 +93,15 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
 
 export async function triggerDeploy(
   projectId: string,
+  opts?: { branch?: string; sha?: string },
 ): Promise<{ deployment: string }> {
+  // When the caller already knows the SHA (e.g. the builder just pushed it),
+  // pass it through to deploy that exact commit and skip the control plane's
+  // git ls-remote resolution. Empty body = deploy the default branch's HEAD.
   return cp<{ deployment: string }>(`/projects/${projectId}/deploy`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: "{}",
+    body: JSON.stringify(opts ?? {}),
   });
 }
 

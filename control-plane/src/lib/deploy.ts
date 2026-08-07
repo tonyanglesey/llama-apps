@@ -2,13 +2,18 @@ import { execa } from "execa";
 import { getPool } from "./db.js";
 import { newId } from "./ids.js";
 import { cloneAtSha, cleanupDir } from "./github.js";
-import { buildImage, dockerRun } from "./builder.js";
+import { buildImage, dockerRun, reapProjectContainers } from "./builder.js";
 import { addRoute, removeRoute, caddyEnabled } from "./caddy.js";
 import { scrubSecrets } from "./secrets.js";
 
 const CONTAINER_PORT = Number(process.env.CONTAINER_PORT ?? 3000);
 const DEPLOY_DOMAIN = process.env.DEPLOY_DOMAIN ?? "apps.example.com";
 const PORT = Number(process.env.PORT ?? 8787);
+// How many of a project's most-recent containers to keep after a deploy: the
+// just-deployed one plus (REAP_KEEP - 1) previous, for instant rollback. The
+// rest are reaped so old deployments don't fill the disk. Default 2 (current +
+// previous). Set REAP_KEEP=0 to disable reaping entirely.
+const REAP_KEEP = Number(process.env.REAP_KEEP ?? 2);
 
 // Optional post-deploy hook: once a deployment is live, fire a configured command
 // to refresh the project's dashboard thumbnail (e.g. the dashboard's
@@ -147,6 +152,21 @@ export async function runDeployment(deploymentId: string): Promise<void> {
 
     // Refresh the dashboard thumbnail for this project (best-effort, detached).
     fireShotHook(dep.project_id);
+
+    // Now that the new container is live and healthy, reap this project's older
+    // containers/images — keep only the newest REAP_KEEP (current + previous).
+    // Runs only on a successful deploy (a failed one throws before here, so the
+    // old container is never reaped). Best-effort: a reap failure must never
+    // fail a deploy that already went live.
+    if (REAP_KEEP > 0) {
+      await reapProjectContainers({
+        projectId: dep.project_id,
+        keep: REAP_KEEP,
+        onLog: log,
+      }).catch((e) =>
+        log("stderr", `reap skipped: ${(e as Error).message}\n`).catch(() => {}),
+      );
+    }
   } catch (err) {
     const msg = (err as Error).message;
     await log("stderr", `deploy failed: ${msg}\n`).catch(() => {});

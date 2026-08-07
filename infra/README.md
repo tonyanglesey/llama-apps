@@ -14,7 +14,7 @@ containers behind Caddy with automatic HTTPS. Targets a bare Ubuntu/Debian serve
 
 | File | What |
 |---|---|
-| `setup-app-box.sh` | Idempotent bootstrap: swap, Docker, Nixpacks, Caddy (loopback admin), ufw, deploy dirs, a control-plane systemd template. Run as root on the box. |
+| `setup-app-box.sh` | Idempotent bootstrap: swap, Docker, Nixpacks, Caddy (loopback admin), ufw, deploy dirs, a control-plane systemd template, headless-Chromium system deps + a boot-time screenshot systemd template. Run as root on the box. |
 | `caddy.base.json` | Reference copy of the base Caddy config the script writes to `/etc/caddy/caddy.json`. |
 
 ## Provision the box
@@ -47,6 +47,22 @@ are required. Override Postgres location and more inline, e.g.
    `dist/` exists: `npm ci && npm run build`), fill
    `/etc/llama-apps/control-plane.env` (from the `.sample` the script wrote), then
    `systemctl enable --now llama-control-plane`.
+5. **(Optional) Deploy thumbnails at boot.** If the dashboard also runs on this box,
+   check it out to `/var/lib/llama-apps/dashboard` (`npm ci && npm run build`, or just
+   the source — `scripts/capture-shots.mjs` doesn't need a build step). Fetch its
+   Chromium *browser* binary as the deploy user (the script above only installed the
+   OS-level shared libraries, not the browser itself — it must be the same user the
+   systemd unit runs as, so the cache lands in the right home directory):
+   ```bash
+   sudo -u ${DEPLOY_USER:-ubuntu} bash -c 'cd /var/lib/llama-apps/dashboard && npx playwright install chromium'
+   ```
+   Then `systemctl enable --now llama-shots` to capture once now and again on every
+   future boot. This is a boot-only refresh — pair it with `SHOT_HOOK_CMD` (see the
+   root README's [Deployment thumbnails](../README.md#deployment-thumbnails) section)
+   for per-deploy freshness too. If the dashboard instead runs off-box (e.g. your
+   laptop, per the "your own box" topology), skip this unit and run
+   `npm run shots` there instead — `llama-shots.service` only helps when the
+   dashboard's `public/` directory is on this box.
 
 ## Security notes (baked into the bootstrap)
 

@@ -78,6 +78,13 @@ for you. It's open-core: you can always self-host the whole thing for free.
 
 ---
 
+## Quick(est) start
+Run the whole stack for FREE on the cloud — dashboard + control plane + Docker — with one
+command. Everything is hosted by lla.ma on the llama cloud:
+
+<a href="https://apps.lla.ma">Deploy a demo app now</a>
+
+
 ## Quick start (local)
 
 Run the whole stack on your machine — dashboard + control plane + Docker — with one
@@ -207,6 +214,14 @@ thumbnail for that project refreshes automatically:
 # in the control plane's environment
 SHOT_HOOK_CMD=node /path/to/dashboard/scripts/capture-shots.mjs
 ```
+
+**Boot-time refresh:** `SHOT_HOOK_CMD` only fires on a *new* deploy — containers that
+come back via Docker's `--restart unless-stopped` after a box reboot don't trigger it,
+so their thumbnails can go stale or missing until each project's next deploy. If you
+run the dashboard on the same box as the control plane, `infra/setup-app-box.sh`
+templates a `llama-shots.service` systemd unit that re-shoots everything once at boot
+(`systemctl enable --now llama-shots` after deploying the dashboard code — see
+`infra/README.md`).
 
 ---
 
