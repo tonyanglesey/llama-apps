@@ -19,6 +19,10 @@ const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, "public", "shots");
 const VIEWPORT = { width: 1280, height: 800 };
 const NAV_TIMEOUT = 20_000;
+// Waits before each retry of a failed capture (so 3 attempts in total). The
+// post-deploy hook fires once, right as a new deployment goes live, so give a
+// still-warming app a couple more chances before giving up.
+const RETRY_DELAYS = [3_000, 10_000];
 
 // Minimal .env.local reader so this shares CONTROL_PLANE_URL with the dashboard.
 async function envLocal(key) {
@@ -58,6 +62,32 @@ function captureUrl(project, latest) {
     ? `https://${project.production_domain}`
     : (latest?.url ?? null);
   return raw && /^https?:\/\//.test(raw) ? raw : null;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// One attempt per element of [0, ...RETRY_DELAYS], each in a fresh page.
+async function capture(ctx, name, url) {
+  for (let attempt = 0; ; attempt++) {
+    const page = await ctx.newPage();
+    let error;
+    try {
+      await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT });
+      await page.waitForTimeout(600); // let fonts / hero images settle
+      return await page.screenshot({ type: "jpeg", quality: 72 });
+    } catch (err) {
+      error = err;
+    } finally {
+      await page.close();
+    }
+    const delay = RETRY_DELAYS[attempt];
+    if (delay === undefined) throw error;
+    console.warn(
+      `… ${name.padEnd(16)} attempt ${attempt + 1} failed, retrying in ${delay / 1000}s ` +
+        `(${error.message.split("\n")[0]})`,
+    );
+    await sleep(delay);
+  }
 }
 
 async function main() {
@@ -105,18 +135,13 @@ async function main() {
 
   let ok = 0;
   for (const { p, url } of targets) {
-    const page = await ctx.newPage();
     try {
-      await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT });
-      await page.waitForTimeout(600); // let fonts / hero images settle
-      const buf = await page.screenshot({ type: "jpeg", quality: 72 });
+      const buf = await capture(ctx, p.name, url);
       await writeFile(path.join(OUT_DIR, `${p.id}.jpg`), buf);
       console.log(`✓ ${p.name.padEnd(16)} ${url}  →  public/shots/${p.id}.jpg`);
       ok++;
     } catch (err) {
       console.warn(`✖ ${p.name.padEnd(16)} ${url}  (${err.message.split("\n")[0]})`);
-    } finally {
-      await page.close();
     }
   }
 
