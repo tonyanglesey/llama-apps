@@ -1,0 +1,12 @@
+# Pin the build toolchain to Node 20 (ships npm 10).
+# Nixpacks otherwise defaults to newest Node (24) + npm 9.x.
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+# Use `npm install` instead of the default `npm ci`.
+# The lockfile is generated on macOS; the build box is Linux, and the two
+# resolve dependency hoisting differently (platform-specific optional deps
+# shift the tree), so strict `npm ci` can fail with a bogus
+# "Missing: picomatch@2.3.2". `npm install` reconciles instead of hard-failing.
+[phases.install]
+cmds = ["npm install --no-audit --no-fund"]
